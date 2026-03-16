@@ -25,20 +25,22 @@ const YOUTUBE_STUDIO = {
   en: 'https://studio.youtube.com/channel/UC1TB05Es-2GHi8RLuYienkQ',
 }
 
-const SPOTIFY_LINKS = {
-  pt: 'https://creators.spotify.com/pod/show/6eksxTNuLAKqkEFf5FCsRR/home',
-  es: 'https://creators.spotify.com/pod/show/0aqwiMj5HYw3APjH4q8ban/home',
-  en: 'https://creators.spotify.com/pod/show/3KnWI3krZLKt8iJThUd6DA/home',
+const SPOTIFY_NEW_EP = {
+  pt: 'https://creators.spotify.com/pod/show/6eksxTNuLAKqkEFf5FCsRR/episodes/new',
+  es: 'https://creators.spotify.com/pod/show/0aqwiMj5HYw3APjH4q8ban/episodes/new',
+  en: 'https://creators.spotify.com/pod/show/3KnWI3krZLKt8iJThUd6DA/episodes/new',
 }
 
-interface FormSpotify {
-  titulo: string
-  descricao: string
-  temporada: string
-  episodio: string
-  data: string
-  hora: string
-}
+const PUBLICACOES_SP_KEY = 'publicacoes_spotify'
+
+const IDX_SP_UPLOAD = 0
+const IDX_SP_TITULO = 1
+const IDX_SP_DESCRICAO = 2
+const IDX_SP_MINIATURA = 3
+const IDX_SP_TAGS = 4
+const IDX_SP_ARTE = 5
+const IDX_SP_PUBLICADO = 6
+const TOTAL_SP = 7
 
 function CheckRow({ checked, onToggle, label, children, sub }: {
   checked: boolean
@@ -146,50 +148,38 @@ export default function PublicacaoVideo() {
   }
 
   // ── Spotify state ──────────────────────────────────────────────────────────
-  const [formsSpotify, setFormsSpotify] = useState<Record<Idioma, FormSpotify>>({
-    pt: { titulo: '', descricao: '', temporada: '1', episodio: '', data: '', hora: '' },
-    es: { titulo: '', descricao: '', temporada: '1', episodio: '', data: '', hora: '' },
-    en: { titulo: '', descricao: '', temporada: '1', episodio: '', data: '', hora: '' },
+  const [checksSP, setChecksSP] = useState<Record<Idioma, boolean[]>>({
+    pt: Array(TOTAL_SP).fill(false),
+    es: Array(TOTAL_SP).fill(false),
+    en: Array(TOTAL_SP).fill(false),
   })
+  const toggleSP = (idx: number) => setChecksSP(c => ({
+    ...c, [idioma]: c[idioma].map((v, i) => i === idx ? !v : v),
+  }))
 
-  const [copiadoSP, setCopiadoSP] = useState<string | null>(null)
+  const [titulosSP, setTitulosSP] = useState<Record<Idioma, string>>({ pt: '', es: '', en: '' })
+  const [descricoesSP, setDescricoesSP] = useState<Record<Idioma, string>>({ pt: '', es: '', en: '' })
 
-  const updateSpotify = (campo: keyof FormSpotify, valor: string) => {
-    setFormsSpotify(f => ({ ...f, [idioma]: { ...f[idioma], [campo]: valor } }))
+  const [publicacoesSP, setPublicacoesSP] = useState<PublicacaoRegistro[]>(() => {
+    try { return JSON.parse(localStorage.getItem(PUBLICACOES_SP_KEY) || '[]') } catch { return [] }
+  })
+  const salvarPublicacaoSP = () => {
+    const nova: PublicacaoRegistro = {
+      id: Date.now().toString(),
+      titulo: titulosSP[idioma] || '(sem título)',
+      idioma,
+      data: new Date().toLocaleDateString('pt-BR'),
+      episodio: nomeEpisodio,
+    }
+    const lista = [nova, ...publicacoesSP]
+    setPublicacoesSP(lista)
+    localStorage.setItem(PUBLICACOES_SP_KEY, JSON.stringify(lista))
   }
-
-  const copiarParaTodosSP = (campo: keyof FormSpotify) => {
-    const valor = formsSpotify[idioma][campo]
-    setFormsSpotify(f => {
-      const novo = { ...f }
-      IDIOMAS.forEach(i => { (novo[i.id] as any)[campo] = valor })
-      return novo
-    })
-    setCopiadoSP(campo)
-    setTimeout(() => setCopiadoSP(null), 1500)
+  const removerPublicacaoSP = (id: string) => {
+    const lista = publicacoesSP.filter(p => p.id !== id)
+    setPublicacoesSP(lista)
+    localStorage.setItem(PUBLICACOES_SP_KEY, JSON.stringify(lista))
   }
-
-  const CopySPBtn = ({ campo }: { campo: string }) => (
-    <button
-      onClick={() => copiarParaTodosSP(campo as keyof FormSpotify)}
-      className={`text-xs flex items-center gap-1 px-2 py-0.5 rounded-md transition-all ${copiadoSP === campo ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-    >
-      {copiadoSP === campo ? <CheckCircle2 size={11} /> : <Copy size={11} />}
-      {copiadoSP === campo ? 'Copiado!' : 'Copiar p/ todos'}
-    </button>
-  )
-
-  const [stepsSP, setStepsSP] = useState<boolean[]>(Array(8).fill(false))
-  const SP_STEPS = [
-    '📁 Novo Episódio → Selecionar Arquivo',
-    '✏️ Título',
-    '📝 Descrição',
-    '🖼️ Miniatura',
-    '🔢 Número da Temporada',
-    '🔢 Número do Episódio',
-    '🎨 Arte do Episódio',
-    '📅 Programar: Data e Hora',
-  ]
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const ytChecks = checks[idioma]
@@ -379,99 +369,132 @@ export default function PublicacaoVideo() {
       )}
 
       {/* ══ SPOTIFY ══════════════════════════════════════════════════════════ */}
-      {plataforma === 'spotify' && (
-        <div className="space-y-4">
+      {plataforma === 'spotify' && (() => {
+        const spChecks = checksSP[idioma]
+        const spConcluidos = spChecks.filter(Boolean).length
+        return (
+          <div className="space-y-3">
 
-          {/* Link direto */}
-          <a
-            href={SPOTIFY_LINKS[idioma]}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm font-medium hover:bg-rose-100 transition-colors"
-          >
-            <ExternalLink size={15} />
-            Abrir Spotify Creators ({IDIOMAS.find(i => i.id === idioma)?.nome})
-          </a>
-
-          {/* Checklist de passos */}
-          <div className="card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-900 text-sm">Checklist de Publicação</h3>
-              <button onClick={() => setStepsSP(Array(8).fill(false))} className="text-xs text-gray-400 hover:text-gray-600">Limpar</button>
+            {/* Progresso */}
+            <div className="flex items-center justify-between px-1">
+              <p className="text-xs text-gray-400">{spConcluidos} / {TOTAL_SP} concluídos</p>
+              <button
+                onClick={() => setChecksSP(c => ({ ...c, [idioma]: Array(TOTAL_SP).fill(false) }))}
+                className="text-xs text-gray-400 hover:text-gray-600"
+              >
+                Limpar
+              </button>
             </div>
-            <div className="space-y-1.5">
-              {SP_STEPS.map((step, i) => (
-                <button
-                  key={i}
-                  onClick={() => setStepsSP(s => s.map((v, j) => j === i ? !v : v))}
-                  className={`w-full flex items-center gap-2.5 text-left px-3 py-2 rounded-lg text-sm transition-all ${stepsSP[i] ? 'bg-green-50 text-green-700 line-through' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
-                >
-                  <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center text-xs ${stepsSP[i] ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'}`}>
-                    {stepsSP[i] ? '✓' : ''}
-                  </span>
-                  {step}
+
+            {/* Checklist */}
+            <div className="card overflow-hidden divide-y divide-gray-100">
+
+              {/* 1. Novo Episódio */}
+              <CheckRow checked={spChecks[IDX_SP_UPLOAD]} onToggle={() => toggleSP(IDX_SP_UPLOAD)} label="Novo Episódio">
+                <a href={SPOTIFY_NEW_EP[idioma]} target="_blank" rel="noopener noreferrer"
+                  className="btn-xs bg-green-500 text-white hover:bg-green-600">
+                  <ExternalLink size={11} /> Abrir Spotify
+                </a>
+                <button onClick={abrirPastaVideos} className="btn-xs">
+                  <FolderOpen size={11} /> 📁 Todos
                 </button>
-              ))}
+              </CheckRow>
+
+              {/* 2. Título */}
+              <CheckRow checked={spChecks[IDX_SP_TITULO]} onToggle={() => toggleSP(IDX_SP_TITULO)} label="Título">
+                <input
+                  className="input py-1 text-xs flex-1 min-w-0"
+                  placeholder="Título do episódio"
+                  value={titulosSP[idioma]}
+                  onChange={e => setTitulosSP(t => ({ ...t, [idioma]: e.target.value }))}
+                />
+                <button onClick={() => copiar('spTitulo', titulosSP[idioma])}
+                  className={`btn-xs flex-shrink-0 ${copiado === 'spTitulo' ? 'bg-green-100 text-green-600' : ''}`}>
+                  {copiado === 'spTitulo' ? <Check size={11} /> : <Copy size={11} />}
+                  {copiado === 'spTitulo' ? 'Copiado!' : 'Copiar'}
+                </button>
+              </CheckRow>
+
+              {/* 3. Descrição */}
+              <CheckRow
+                checked={spChecks[IDX_SP_DESCRICAO]}
+                onToggle={() => toggleSP(IDX_SP_DESCRICAO)}
+                label="Descrição"
+                sub={
+                  <button onClick={() => copiar('spDescricao', descricoesSP[idioma])}
+                    className={`btn-xs ${copiado === 'spDescricao' ? 'bg-green-100 text-green-600' : ''}`}>
+                    {copiado === 'spDescricao' ? <Check size={11} /> : <Copy size={11} />}
+                    {copiado === 'spDescricao' ? 'Copiado!' : 'Copiar'}
+                  </button>
+                }
+              >
+                <textarea
+                  className="input py-1 text-xs flex-1 min-w-0 resize-none"
+                  rows={3}
+                  placeholder="Descrição do episódio..."
+                  value={descricoesSP[idioma]}
+                  onChange={e => setDescricoesSP(d => ({ ...d, [idioma]: e.target.value }))}
+                />
+              </CheckRow>
+
+              {/* 4. Miniatura */}
+              <CheckRow checked={spChecks[IDX_SP_MINIATURA]} onToggle={() => toggleSP(IDX_SP_MINIATURA)} label="Miniatura">
+                <button onClick={abrirPastaVideos} className="btn-xs">
+                  <FolderOpen size={11} /> 📁 Todos
+                </button>
+              </CheckRow>
+
+              {/* 5. Tags */}
+              <CheckRow checked={spChecks[IDX_SP_TAGS]} onToggle={() => toggleSP(IDX_SP_TAGS)} label="Tags">
+                <a href="https://rapidtags.io/generator" target="_blank" rel="noopener noreferrer"
+                  className="btn-xs bg-violet-100 text-violet-700 hover:bg-violet-200">
+                  <Tag size={11} /> Gerar Tags
+                </a>
+              </CheckRow>
+
+              {/* 6. Arte do Episódio */}
+              <CheckRow checked={spChecks[IDX_SP_ARTE]} onToggle={() => toggleSP(IDX_SP_ARTE)} label="Arte do Episódio">
+                <button onClick={abrirPastaVideos} className="btn-xs">
+                  <FolderOpen size={11} /> 📁 Todos
+                </button>
+              </CheckRow>
+
+              {/* 7. Publicado */}
+              <CheckRow checked={spChecks[IDX_SP_PUBLICADO]} onToggle={() => toggleSP(IDX_SP_PUBLICADO)} label="Publicado">
+                <button onClick={salvarPublicacaoSP}
+                  className="btn-xs bg-green-500 text-white hover:bg-green-600">
+                  <CheckCircle2 size={11} /> Marcar como Publicado
+                </button>
+              </CheckRow>
+
             </div>
-            <p className="text-xs text-gray-400 mt-2 text-center">
-              {stepsSP.filter(Boolean).length} / {SP_STEPS.length} concluídos
-            </p>
+
+            {/* Lista de publicações Spotify */}
+            {publicacoesSP.length > 0 && (
+              <div className="card p-4">
+                <h3 className="text-sm font-semibold text-gray-800 mb-3">Episódios Publicados</h3>
+                <div className="space-y-2">
+                  {publicacoesSP.map(p => (
+                    <div key={p.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{p.titulo}</p>
+                        <p className="text-xs text-gray-400">
+                          {p.data} · {IDIOMAS.find(i => i.id === p.idioma)?.label}
+                          {p.episodio && ` · ${p.episodio}`}
+                        </p>
+                      </div>
+                      <button onClick={() => removerPublicacaoSP(p.id)}
+                        className="flex-shrink-0 text-xs text-gray-400 hover:text-red-500 transition-colors px-2 py-1">
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Formulário */}
-          <div className="card p-5 space-y-4">
-            <h3 className="font-semibold text-gray-900 text-sm">Dados para copiar</h3>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2 text-sm text-amber-700">
-              <Image size={15} className="flex-shrink-0" />
-              <span>Lembrete: selecionar o <strong>arquivo de áudio/vídeo</strong> primeiro no Spotify Creators</span>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="label mb-0">Título do Episódio</label>
-                <CopySPBtn campo="titulo" />
-              </div>
-              <input className="input" placeholder="Título do episódio" value={formsSpotify[idioma].titulo} onChange={e => updateSpotify('titulo', e.target.value)} />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="label mb-0">Descrição</label>
-                <CopySPBtn campo="descricao" />
-              </div>
-              <textarea className="input resize-none" rows={4} placeholder="Descrição do episódio..." value={formsSpotify[idioma].descricao} onChange={e => updateSpotify('descricao', e.target.value)} />
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2 text-sm text-amber-700">
-              <Image size={15} className="flex-shrink-0" />
-              <span>Lembrete: fazer upload da <strong>Miniatura</strong> e da <strong>Arte do Episódio</strong> no Spotify Creators</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Número da Temporada</label>
-                <input type="number" className="input" value={formsSpotify[idioma].temporada} onChange={e => updateSpotify('temporada', e.target.value)} />
-              </div>
-              <div>
-                <label className="label">Número do Episódio</label>
-                <input type="number" className="input" placeholder="Ex: 42" value={formsSpotify[idioma].episodio} onChange={e => updateSpotify('episodio', e.target.value)} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Data de publicação</label>
-                <input type="date" className="input" value={formsSpotify[idioma].data} onChange={e => updateSpotify('data', e.target.value)} />
-              </div>
-              <div>
-                <label className="label">Horário</label>
-                <input type="time" className="input" value={formsSpotify[idioma].hora} onChange={e => updateSpotify('hora', e.target.value)} />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        )
+      })()}
     </ModuleLayout>
   )
 }
