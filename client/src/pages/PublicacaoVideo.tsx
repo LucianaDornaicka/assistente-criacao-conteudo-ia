@@ -27,10 +27,10 @@ const IDIOMAS = [
   { id: 'en' as Idioma, label: '🇺🇸 EN', nome: 'Inglês' },
 ]
 
-const YOUTUBE_UPLOAD = {
-  pt: 'https://studio.youtube.com/channel/UCaVxP3Jj67Ko-f4stRabrkA/videos/upload',
-  es: 'https://studio.youtube.com/channel/UC7DwigoUdNYXAkv0d-KehVQ/videos/upload',
-  en: 'https://studio.youtube.com/channel/UC1TB05Es-2GHi8RLuYienkQ/videos/upload',
+const YOUTUBE_STUDIO = {
+  pt: 'https://studio.youtube.com/channel/UCaVxP3Jj67Ko-f4stRabrkA',
+  es: 'https://studio.youtube.com/channel/UC7DwigoUdNYXAkv0d-KehVQ',
+  en: 'https://studio.youtube.com/channel/UC1TB05Es-2GHi8RLuYienkQ',
 }
 
 const SPOTIFY_LINKS = {
@@ -38,8 +38,6 @@ const SPOTIFY_LINKS = {
   es: 'https://creators.spotify.com/pod/show/0aqwiMj5HYw3APjH4q8ban/home',
   en: 'https://creators.spotify.com/pod/show/3KnWI3krZLKt8iJThUd6DA/home',
 }
-
-const PLAYLISTS_YT = ['Bíblia', 'Devocional', 'Estudo Bíblico', 'Sermão', 'Outro']
 
 interface FormSpotify {
   titulo: string
@@ -93,13 +91,6 @@ export default function PublicacaoVideo() {
     en: Array(TOTAL_STEPS).fill(false),
   })
 
-  const marcar = (idx: number) => {
-    setChecks(c => ({
-      ...c,
-      [idioma]: c[idioma].map((v, i) => (i === idx ? true : v)),
-    }))
-  }
-
   const toggleCheck = (idx: number) => {
     setChecks(c => ({
       ...c,
@@ -128,7 +119,6 @@ export default function PublicacaoVideo() {
     const lista = [nova, ...publicacoes]
     setPublicacoes(lista)
     localStorage.setItem(PUBLICACOES_KEY, JSON.stringify(lista))
-    marcar(IDX_PUBLICADO)
   }
 
   const removerPublicacao = (id: string) => {
@@ -291,23 +281,22 @@ export default function PublicacaoVideo() {
           <CheckRow idx={IDX_UPLOAD} label="Fazer upload do vídeo">
             <div className="flex flex-wrap gap-2">
               <a
-                href={YOUTUBE_UPLOAD[idioma]}
+                href={YOUTUBE_STUDIO[idioma]}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => marcar(IDX_UPLOAD)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors"
               >
-                <ExternalLink size={12} /> Abrir Upload
+                <ExternalLink size={12} /> Abrir YouTube Studio
               </a>
               <button
-                onClick={() => { abrirPastaEpisodio(); marcar(IDX_UPLOAD) }}
+                onClick={abrirPastaEpisodio}
                 disabled={!ep?.pastaAtual}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-40"
               >
                 <FolderOpen size={12} /> 📁 Abrir
               </button>
               <button
-                onClick={() => { abrirPastaVideos(); marcar(IDX_UPLOAD) }}
+                onClick={abrirPastaVideos}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors"
               >
                 <FolderOpen size={12} /> 📁 Todos
@@ -322,10 +311,10 @@ export default function PublicacaoVideo() {
                 className="input flex-1"
                 placeholder="Título do vídeo"
                 value={titulos[idioma]}
-                onChange={e => { setTitulos(t => ({ ...t, [idioma]: e.target.value })); marcar(IDX_TITULO) }}
+                onChange={e => setTitulos(t => ({ ...t, [idioma]: e.target.value }))}
               />
               <button
-                onClick={() => { copiar('titulo', titulos[idioma]); marcar(IDX_TITULO) }}
+                onClick={() => copiar('titulo', titulos[idioma])}
                 className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${copiado === 'titulo' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
               >
                 {copiado === 'titulo' ? <Check size={12} /> : <Copy size={12} />}
@@ -342,10 +331,10 @@ export default function PublicacaoVideo() {
                 rows={4}
                 placeholder="Descrição do vídeo..."
                 value={descricoes[idioma]}
-                onChange={e => { setDescricoes(d => ({ ...d, [idioma]: e.target.value })); marcar(IDX_DESCRICAO) }}
+                onChange={e => setDescricoes(d => ({ ...d, [idioma]: e.target.value }))}
               />
               <button
-                onClick={() => { copiar('descricao', descricoes[idioma]); marcar(IDX_DESCRICAO) }}
+                onClick={() => copiar('descricao', descricoes[idioma])}
                 className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${copiado === 'descricao' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
               >
                 {copiado === 'descricao' ? <Check size={12} /> : <Copy size={12} />}
@@ -361,14 +350,14 @@ export default function PublicacaoVideo() {
                 <Image size={12} /> Fazer upload no YouTube Studio
               </div>
               <button
-                onClick={() => { abrirPastaEpisodio(); marcar(IDX_MINIATURA) }}
+                onClick={abrirPastaEpisodio}
                 disabled={!ep?.pastaAtual}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-40"
               >
                 <FolderOpen size={12} /> 📁 Abrir
               </button>
               <button
-                onClick={() => { abrirPastaVideos(); marcar(IDX_MINIATURA) }}
+                onClick={abrirPastaVideos}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors"
               >
                 <FolderOpen size={12} /> 📁 Todos
@@ -379,15 +368,14 @@ export default function PublicacaoVideo() {
           {/* ── 5. Tags ── */}
           <CheckRow idx={IDX_TAGS} label="Tags">
             <a
-              href={`https://keywordtool.io/youtube?keyword=${encodeURIComponent(titulos[idioma])}&country=BR&language=pt`}
+              href="https://rapidtags.io/generator"
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => marcar(IDX_TAGS)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 text-violet-700 text-xs font-medium rounded-lg hover:bg-violet-200 transition-colors w-fit"
             >
-              <Tag size={12} /> Buscar Tags
+              <Tag size={12} /> Gerar Tags
             </a>
-            <p className="text-xs text-gray-400 mt-1.5">Abre o KeywordTool com o título já preenchido. Adicionar em "Mostrar Mais" no YouTube Studio.</p>
+            <p className="text-xs text-gray-400 mt-1.5">Adicionar em "Mostrar Mais" no YouTube Studio.</p>
           </CheckRow>
 
           {/* ── 6. Vídeo anterior ── */}
@@ -397,10 +385,10 @@ export default function PublicacaoVideo() {
                 className="input flex-1"
                 placeholder="https://youtube.com/watch?v=..."
                 value={videosAnteriores[idioma]}
-                onChange={e => { setVideosAnteriores(v => ({ ...v, [idioma]: e.target.value })); marcar(IDX_VIDEO_ANTERIOR) }}
+                onChange={e => setVideosAnteriores(v => ({ ...v, [idioma]: e.target.value }))}
               />
               <button
-                onClick={() => { copiar('videoAnterior', videosAnteriores[idioma]); marcar(IDX_VIDEO_ANTERIOR) }}
+                onClick={() => copiar('videoAnterior', videosAnteriores[idioma])}
                 className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${copiado === 'videoAnterior' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
               >
                 {copiado === 'videoAnterior' ? <Check size={12} /> : <Copy size={12} />}
