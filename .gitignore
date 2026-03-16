@@ -1,0 +1,31 @@
+node_modules/
+client/node_modules/
+client/dist/
+serviceAccount.json
+.env
+render.env
+Agente-Videos/.env
+src/agents/videos/.env
+
+# Dados persistidos em runtime
+data/
+
+# Claude Code settings locais
+.claude/
+
+# Executáveis
+*.exe
+
+# Arquivos gerados em runtime (não subir para o GitHub)
+Agente-Videos/videos/*/audios/
+Agente-Videos/videos/*/imagens/*.png
+Agente-Videos/videos/*/imagens/*_anima/
+Agente-Videos/videos/*/imagens/videos_animados/
+Agente-Videos/videos/*/*.mp3
+Agente-Videos/videos/*/*.txt
+Agente-Videos/cookies_speedpaint.json
+
+# Áudios e vídeos gerados em src/agents/videos
+src/agents/videos/videos/*/audios/
+src/agents/videos/videos/*/*.mp3
+src/agents/videos/videos/*/*.mp4

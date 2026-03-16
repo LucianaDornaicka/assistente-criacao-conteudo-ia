@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: assistente-criacao-conteudo
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # ── Autenticação do app web ───────────────────────────────────────────
+      - key: APP_PASSWORD
+        sync: false   # definir no painel do Render
+      - key: JWT_SECRET
+        sync: false   # definir no painel do Render
+
+      # ── APIs de IA ────────────────────────────────────────────────────────
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+      # ── ElevenLabs (geração de áudio) ─────────────────────────────────────
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: VOICE_ID_LUCIANA
+        sync: false
+      - key: VOICE_ID_TOM
+        sync: false
+
+      # ── Google (agenda, drive) — opcional ────────────────────────────────
+      - key: GOOGLE_SERVICE_ACCOUNT
+        sync: false
+
+      # ── Twilio (WhatsApp) — opcional ──────────────────────────────────────
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_WHATSAPP_NUMBER
+        sync: false
+      - key: MEU_NUMERO_WHATSAPP
+        sync: false
