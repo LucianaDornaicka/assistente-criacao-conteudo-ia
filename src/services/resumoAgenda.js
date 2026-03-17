@@ -5,8 +5,10 @@ const NUMERO_DESTINO = process.env.TWILIO_WHATSAPP_DEST || 'whatsapp:+5519981394
 
 export async function enviarResumoDiario() {
   try {
-    const amanha = new Date();
-    amanha.setDate(amanha.getDate() + 1);
+    // Obtém a data de hoje no fuso de Brasília (evita bug quando roda à meia-noite UTC = 21h BRT)
+    const hojeEmBrasilia = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const [anoHoje, mesHoje, diaHoje] = hojeEmBrasilia.split('-').map(Number);
+    const amanha = new Date(anoHoje, mesHoje - 1, diaHoje + 1);
     const ano = amanha.getFullYear();
     const mes = String(amanha.getMonth() + 1).padStart(2, '0');
     const dia = String(amanha.getDate()).padStart(2, '0');
