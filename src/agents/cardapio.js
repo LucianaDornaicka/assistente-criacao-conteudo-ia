@@ -51,7 +51,7 @@ export async function agenteCardapio(mensagem, remetente) {
   const texto = mensagem?.toLowerCase().trim() || '';
   const estado = estadosCardapio[remetente];
 
-  if (texto === 'cardápio' || texto === 'cardapio') {
+  if (texto === 'c' || texto === 'cardápio' || texto === 'cardapio') {
     estadosCardapio[remetente] = { etapa: 'menu' };
     return {
       sucesso: true,
