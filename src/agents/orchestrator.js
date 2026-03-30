@@ -46,6 +46,7 @@ carregarEstados();
 export async function handle(mensagem, remetente) {
   carregarEstados();
   const texto = mensagem?.toLowerCase().trim() || "";
+  console.log('HANDLE INICIO texto:', JSON.stringify(texto), '| estadosMedicos:', !!estadosMedicos[remetente], '| estadosCardapio:', !!estadosCardapio[remetente]);
   let resultado;
 
   try {

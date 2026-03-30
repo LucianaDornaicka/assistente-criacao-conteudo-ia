@@ -29,8 +29,14 @@ app.post("/webhook/whatsapp", async (req, res) => {
   const mensagem = req.body.Body;
   const remetente = req.body.From;
 
+  console.log('WEBHOOK recebido:', JSON.stringify(mensagem), '| typeof handle:', typeof handle);
+
   if (mensagem && remetente) {
-    await handle(mensagem, remetente);
+    try {
+      await handle(mensagem, remetente);
+    } catch (err) {
+      console.error('ERRO no handle():', err.message, err.stack);
+    }
   }
 
   res.send("OK");
