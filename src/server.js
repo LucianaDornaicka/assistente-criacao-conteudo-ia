@@ -3,6 +3,7 @@ import { handle } from "./agents/orchestrator.js";
 import { router as authRoutes, autenticar } from '../server-routes/auth.js'
 import agendaRoutes from '../server-routes/agenda.js'
 import episodiosRoutes from '../server-routes/episodios.js'
+import videosRoutes from '../server-routes/videos.js'
 import { fileURLToPath } from 'url'
 import path from 'path'
 
@@ -45,6 +46,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
 app.use('/api/auth', authRoutes)
 app.use('/api/agenda', autenticar, agendaRoutes)
 app.use('/api/episodios', autenticar, episodiosRoutes)
+app.use('/api/videos', autenticar, videosRoutes)
 
 app.use(express.static(path.join(__dirname, '../client/dist')))
 app.get('*', (req, res) => {
