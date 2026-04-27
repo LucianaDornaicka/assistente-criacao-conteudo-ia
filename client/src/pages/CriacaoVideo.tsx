@@ -120,11 +120,13 @@ export default function CriacaoVideo() {
   }
 
   const abrirPasta = () => {
-    if (!pastaAtual) return
-    const normalized = pastaAtual.replace(/\\/g, '/')
-    try { window.open(`file:///${encodeURI(normalized)}`) } catch { /* ignore */ }
-    copiar('abrir-pasta', pastaAtual)
-    avisarAbrirLocal(pastaAtual)
+    if (!pastaNome && !episodioId) return
+    const nome = pastaNome || episodioId || ''
+    const caminho = `C:\\Users\\lu_do\\Desktop\\Meu_Agente\\Agente-Videos\\videos\\${nome}`
+    const fileUrl = `file:///C:/Users/lu_do/Desktop/Meu_Agente/Agente-Videos/videos/${encodeURIComponent(nome)}`
+    try { window.open(fileUrl) } catch { /* ignore */ }
+    copiar('abrir-pasta', caminho)
+    avisarAbrirLocal(caminho)
   }
 
   const abrirPastaVideos = () => {
@@ -653,7 +655,7 @@ export default function CriacaoVideo() {
           <span className="text-xs text-gray-500 truncate flex-1">
             {pastaNome ? <span className="font-medium text-gray-700">{pastaNome}</span> : <span className="text-gray-400">Pasta criada ao concluir etapa 1</span>}
           </span>
-          {pastaAtual && (
+          {(pastaNome || episodioId) && (
             <button
               onClick={abrirPasta}
               className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 text-xs text-gray-500 hover:text-pink-600 border border-gray-200 rounded-md hover:border-pink-300 transition-colors"
