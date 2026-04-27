@@ -109,9 +109,39 @@ export default function CriacaoVideo() {
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [copiadoId, setCopiadoId] = useState<string | null>(null)
+  const [modalPasta, setModalPasta] = useState<{ aberto: boolean; titulo: string; caminho: string; fileUrl: string }>(
+    { aberto: false, titulo: '', caminho: '', fileUrl: '' },
+  )
 
   const scriptRef = useRef<HTMLTextAreaElement>(null)
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const CAMINHO_BASE_VIDEOS = 'C:\\Users\\lu_do\\Desktop\\Meu_Agente\\Agente-Videos\\videos'
+
+  const caminhoPastaEpisodio = useMemo(() => {
+    if (pastaNome) return `${CAMINHO_BASE_VIDEOS}\\${pastaNome}`
+    if (pastaAtual) return pastaAtual
+    return ''
+  }, [pastaNome, pastaAtual])
+
+  const fileUrlPastaEpisodio = useMemo(() => {
+    if (!caminhoPastaEpisodio) return ''
+    const normalized = caminhoPastaEpisodio.replace(/\\/g, '/')
+    return `file:///${encodeURI(normalized)}`
+  }, [caminhoPastaEpisodio])
+
+  const fileUrlPastaVideos = useMemo(() => {
+    const normalized = CAMINHO_BASE_VIDEOS.replace(/\\/g, '/')
+    return `file:///${encodeURI(normalized)}/`
+  }, [])
+
+  const abrirPastaLocal = (tipo: 'episodio' | 'todos') => {
+    const caminho = tipo === 'episodio' ? caminhoPastaEpisodio : CAMINHO_BASE_VIDEOS
+    const fileUrl = tipo === 'episodio' ? fileUrlPastaEpisodio : fileUrlPastaVideos
+    const titulo = tipo === 'episodio' ? 'Pasta do episódio (local)' : 'Todas as pastas de vídeos (local)'
+    if (fileUrl) window.open(fileUrl)
+    setModalPasta({ aberto: true, titulo, caminho, fileUrl })
+  }
 
   // ── Carregar lista ao montar ───────────────────────────────────────────────
   useEffect(() => {
@@ -552,13 +582,18 @@ export default function CriacaoVideo() {
           <span className="text-xs text-gray-500 truncate flex-1">
             {pastaNome ? <span className="font-medium text-gray-700">{pastaNome}</span> : <span className="text-gray-400">Pasta criada ao concluir etapa 1</span>}
           </span>
-          {pastaAtual && (
-            <button onClick={abrirPasta} className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 text-xs text-gray-500 hover:text-pink-600 border border-gray-200 rounded-md hover:border-pink-300 transition-colors">
+          {caminhoPastaEpisodio && (
+            <button
+              onClick={() => abrirPastaLocal('episodio')}
+              title={caminhoPastaEpisodio}
+              className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 text-xs text-gray-500 hover:text-pink-600 border border-gray-200 rounded-md hover:border-pink-300 transition-colors"
+            >
               <FolderOpen size={11} /> Abrir
             </button>
           )}
           <button
-            onClick={async () => { await fetch('/api/videos/abrir-pasta-videos', { method: 'POST', headers: authHeaders() }) }}
+            onClick={() => abrirPastaLocal('todos')}
+            title={CAMINHO_BASE_VIDEOS}
             className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 text-xs text-gray-500 hover:text-pink-600 border border-gray-200 rounded-md hover:border-pink-300 transition-colors"
           >
             <FolderOpen size={11} /> Todos
@@ -570,6 +605,51 @@ export default function CriacaoVideo() {
           </div>
         )}
       </div>
+
+      {/* Modal: caminho para copiar */}
+      {modalPasta.aberto && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setModalPasta(m => ({ ...m, aberto: false }))}
+        >
+          <div className="w-full max-w-xl bg-white rounded-2xl border border-gray-200 shadow-xl p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900">{modalPasta.titulo}</p>
+                <p className="text-xs text-gray-500 mt-0.5 break-all">{modalPasta.fileUrl}</p>
+              </div>
+              <button
+                onClick={() => setModalPasta(m => ({ ...m, aberto: false }))}
+                className="text-gray-400 hover:text-gray-700 px-2"
+                aria-label="Fechar"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              <p className="text-xs text-gray-500">Caminho (Windows):</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 block text-xs bg-gray-50 border border-gray-200 rounded-lg p-2 text-gray-800 break-all select-all">
+                  {modalPasta.caminho}
+                </code>
+                <button
+                  onClick={() => copiar('modal-pasta', modalPasta.caminho)}
+                  className="flex-shrink-0 p-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:text-pink-600 transition-colors"
+                  title="Copiar caminho"
+                >
+                  {copiadoId === 'modal-pasta' ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                </button>
+              </div>
+              <p className="text-xs text-gray-400">
+                Se não abrir automaticamente, copie o caminho acima e cole no Explorer.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Progress steps */}
       <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-2">

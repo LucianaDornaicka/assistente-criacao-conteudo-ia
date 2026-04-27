@@ -158,16 +158,17 @@ router.post('/abrir-pasta-videos', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/traduzir', async (req, res) => {
   try {
-    const { texto, pasta } = req.body
+    const { texto, pasta, idioma } = req.body
     if (!texto) return res.status(400).json({ erro: 'Texto obrigatório' })
+    if (idioma && !['es', 'en'].includes(idioma)) return res.status(400).json({ erro: 'idioma inválido (use es ou en)' })
 
     const env = lerEnvAgenteVideos()
     const apiKey = env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY
     const client = new Anthropic({ apiKey })
 
     const prompt = `Responda APENAS com JSON válido, sem texto antes ou depois.
-Traduza o seguinte texto bíblico/religioso para espanhol e inglês.
-Retorne APENAS um JSON válido no formato: {"es": "tradução em espanhol", "en": "english translation"}
+${idioma === 'es' ? 'Traduza o seguinte texto bíblico/religioso para espanhol.' : idioma === 'en' ? 'Traduza o seguinte texto bíblico/religioso para inglês.' : 'Traduza o seguinte texto bíblico/religioso para espanhol e inglês.'}
+Retorne APENAS um JSON válido no formato: ${idioma === 'es' ? '{"es": "tradução em espanhol"}' : idioma === 'en' ? '{"en": "english translation"}' : '{"es": "tradução em espanhol", "en": "english translation"}'}
 Mantenha o tom pastoral e devocional.
 IMPORTANTE: preserve exatamente os marcadores de voz [LUCIANA], [/LUCIANA], [TOM], [/TOM] em suas posições — apenas traduza o texto dentro deles.
 
@@ -212,18 +213,64 @@ ${texto}`
     }
 
     const traducoes = JSON.parse(fixed)
-    if (!traducoes.es || !traducoes.en) throw new Error('Tradução incompleta')
+    if (idioma === 'es' && !traducoes.es) throw new Error('Tradução incompleta (es)')
+    if (idioma === 'en' && !traducoes.en) throw new Error('Tradução incompleta (en)')
+    if (!idioma && (!traducoes.es || !traducoes.en)) throw new Error('Tradução incompleta')
 
     // Salva em disco se pasta fornecida
     if (pasta && fs.existsSync(pasta)) {
       if (traducoes.es) fs.writeFileSync(path.join(pasta, 'script_es.txt'), traducoes.es, 'utf-8')
       if (traducoes.en) fs.writeFileSync(path.join(pasta, 'script_en.txt'), traducoes.en, 'utf-8')
-      console.log(`[Videos] Scripts ES/EN salvos em: ${pasta}`)
+      console.log(`[Videos] Scripts salvos em: ${pasta}`)
     }
 
     res.json(traducoes)
   } catch (err) {
     console.error('[Videos] Erro ao traduzir:', err)
+    res.status(500).json({ erro: err.message })
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/videos/gerar-prompt
+// Gera um prompt PT para um único trecho do script
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/gerar-prompt', async (req, res) => {
+  try {
+    const { trecho } = req.body
+    if (!trecho) return res.status(400).json({ erro: 'trecho obrigatório' })
+
+    const env = lerEnvAgenteVideos()
+    const apiKey = env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY
+    const client = new Anthropic({ apiKey })
+
+    const systemPrompt = `Você é especialista em produção de vídeos bíblicos estilo whiteboard animation.
+Crie UM prompt de imagem em PORTUGUÊS BRASILEIRO para o DALL-E 3 a partir do trecho fornecido.
+
+Regras do prompt:
+- Escreva o prompt em português, descrevendo a cena visual
+- O prompt deve refletir ESPECIFICAMENTE o conteúdo do trecho (personagens, objetos, cenário, ação)
+- Estilo visual: ilustração estilo whiteboard/lousa branca, contornos pretos nítidos, cores suaves e planas, traço simples de mão, conteúdo bíblico
+- Sem rostos humanos detalhados — use figuras estilizadas, símbolos, paisagens bíblicas
+
+Retorne APENAS um JSON válido no formato: {"pt_prompt": "..."}` 
+
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: `TRECHO:\n${trecho}` }],
+    })
+
+    const conteudo = message.content[0].text
+    const jsonMatch = conteudo.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error('Resposta inválida da IA')
+    const data = JSON.parse(jsonMatch[0])
+    if (!data.pt_prompt) throw new Error('Prompt incompleto')
+
+    res.json({ ptPrompt: data.pt_prompt })
+  } catch (err) {
+    console.error('[Videos] Erro ao gerar prompt:', err)
     res.status(500).json({ erro: err.message })
   }
 })
@@ -382,8 +429,9 @@ router.post('/gerar-imagem', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/gerar-audios', async (req, res) => {
   try {
-    const { scriptPT, scriptES, scriptEN, pasta } = req.body
+    const { scriptPT, scriptES, scriptEN, pasta, idioma } = req.body
     if (!scriptPT) return res.status(400).json({ erro: 'scriptPT obrigatório' })
+    if (idioma && !['pt', 'es', 'en'].includes(idioma)) return res.status(400).json({ erro: 'idioma inválido (use pt, es ou en)' })
 
     const env = lerEnvAgenteVideos()
     const apiKey = env.ELEVENLABS_API_KEY || process.env.ELEVENLABS_API_KEY
@@ -393,7 +441,8 @@ router.post('/gerar-audios', async (req, res) => {
     if (!apiKey) return res.status(400).json({ erro: 'ELEVENLABS_API_KEY não configurada' })
     if (!voiceIdLuciana || !voiceIdTom) return res.status(400).json({ erro: 'VOICE_ID_LUCIANA ou VOICE_ID_TOM não configurados' })
 
-    const scripts = { pt: scriptPT, es: scriptES || '', en: scriptEN || '' }
+    const scriptsAll = { pt: scriptPT, es: scriptES || '', en: scriptEN || '' }
+    const scripts = idioma ? { [idioma]: scriptsAll[idioma] } : scriptsAll
     const resultado = {}
     const arquivos = {}
 
