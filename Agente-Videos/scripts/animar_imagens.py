@@ -453,6 +453,12 @@ async def main():
         print(f"[ERRO] Pasta nao encontrada: {pasta}")
         sys.exit(1)
 
+    # Aceita tanto:
+    # - caminho direto para a pasta de imagens (…/imagens)
+    # - caminho para a pasta do episódio (…/videos/EPISODIO), desde que exista EPISODIO/imagens
+    if pasta.is_dir() and (pasta / "imagens").exists():
+        pasta = pasta / "imagens"
+
     imagens = sorted(
         list(pasta.glob("*.png")) +
         list(pasta.glob("*.jpg")) +

@@ -378,6 +378,10 @@ export default function CriacaoVideo() {
 
   const deletarPrompt = (id: string) => setPrompts(p => p.filter(x => x.id !== id))
 
+  const editarPromptEN = (id: string, novoTexto: string) => {
+    setPrompts(p => p.map(x => x.id === id ? { ...x, enPrompt: novoTexto } : x))
+  }
+
   const gerarImagem = async (id: string, enPrompt: string) => {
     setPrompts(p => p.map(x => x.id === id ? { ...x, loadingImagem: true } : x))
     setErro('')
@@ -572,14 +576,16 @@ export default function CriacaoVideo() {
         {ETAPAS.map((e, i) => {
           const concluida = etapasConcluidas.has(e.id as Etapa)
           const atual = etapaAtual === e.id
+          const podeIr = atual || concluida
           return (
             <div key={e.id} className="flex items-center gap-1 flex-shrink-0">
               <button
-                onClick={() => setEtapaAtual(e.id as Etapa)}
+                onClick={() => { if (podeIr) setEtapaAtual(e.id as Etapa) }}
+                disabled={!podeIr}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   atual ? 'bg-pink-500 text-white shadow' :
                   concluida ? 'bg-green-100 text-green-700' :
-                  'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
               >
                 {concluida ? <CheckCircle2 size={12} /> : <Circle size={12} />}
@@ -787,15 +793,37 @@ export default function CriacaoVideo() {
                       )}
                       <div className="flex items-start gap-2 px-3 py-2">
                         <div className="flex-1">
-                          <p className="text-sm text-gray-700 leading-relaxed">{p.ptPrompt}</p>
-                          {p.enPrompt && <p className="mt-1 text-xs text-gray-400 italic">🇺🇸 {p.enPrompt}</p>}
+                          <p className="text-xs font-medium text-gray-400 mb-1">Prompt (editável)</p>
+                          <textarea
+                            className="w-full text-sm text-gray-800 bg-white border border-gray-200 rounded-lg p-2 resize-y leading-relaxed min-h-[4rem]"
+                            value={p.enPrompt || ''}
+                            onChange={e => editarPromptEN(p.id, e.target.value)}
+                            placeholder="Cole/edite aqui o prompt em inglês (usado para gerar a imagem)..."
+                          />
+                          {p.ptPrompt && <p className="mt-1 text-xs text-gray-400">🇧🇷 {p.ptPrompt}</p>}
                         </div>
-                        {!p.imagemUrl && !p.loadingImagem && p.enPrompt && (
-                          <button onClick={() => gerarImagem(p.id, p.enPrompt)}
-                            className="flex-shrink-0 flex items-center gap-1 px-2 py-1 bg-pink-500 text-white text-xs rounded-lg hover:bg-pink-600 transition-colors">
-                            <Wand2 size={12} /> Gerar
-                          </button>
-                        )}
+                        <div className="flex flex-col gap-2 flex-shrink-0">
+                          {!p.loadingImagem && (p.enPrompt || '').trim() && (
+                            <>
+                              {!p.imagemUrl ? (
+                                <button
+                                  onClick={() => gerarImagem(p.id, p.enPrompt || '')}
+                                  className="flex items-center justify-center gap-1 px-2 py-1 bg-pink-500 text-white text-xs rounded-lg hover:bg-pink-600 transition-colors"
+                                >
+                                  <Wand2 size={12} /> Gerar
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => gerarImagem(p.id, p.enPrompt || '')}
+                                  className="flex items-center justify-center gap-1 px-2 py-1 bg-white border border-gray-200 text-gray-700 text-xs rounded-lg hover:bg-gray-100 transition-colors"
+                                  title="Gera novamente a imagem com o prompt atual"
+                                >
+                                  🔄 Regenerar
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                     {p.loadingImagem && (
@@ -848,27 +876,20 @@ export default function CriacaoVideo() {
             <p className="text-sm font-medium text-blue-800">Automação via Playwright (recomendado)</p>
 
             <div className="space-y-1">
-              <p className="text-xs font-medium text-blue-700">1. Entre na pasta do episódio</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 block text-xs bg-white border border-blue-200 rounded p-2 text-blue-900 break-all select-all">
-                  {pastaAtual ? `Set-Location "${pastaAtual}"` : `Set-Location "C:\\Users\\c182154\\Desktop\\Meu_Agente\\Agente-Videos\\videos\\<pasta-do-episodio>"`}
-                </code>
-                <button onClick={() => copiar('cmd1', pastaAtual ? `Set-Location "${pastaAtual}"` : `Set-Location "C:\\Users\\c182154\\Desktop\\Meu_Agente\\Agente-Videos\\videos\\<pasta-do-episodio>"`)}
-                  className="flex-shrink-0 p-1.5 rounded-lg bg-white border border-blue-200 text-blue-500 hover:text-blue-700 transition-colors" title="Copiar">
-                  {copiadoId === 'cmd1' ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                </button>
-              </div>
+              <p className="text-xs text-blue-600">
+                Substitua SEUNOME pelo seu usuário Windows (ex: lu_do). As imagens devem estar em uma subpasta chamada imagens dentro da pasta do episódio.
+              </p>
             </div>
 
             <div className="space-y-1">
               <p className="text-xs font-medium text-blue-700">2. Animar todas as imagens</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 block text-xs bg-white border border-blue-200 rounded p-2 text-blue-900 break-all select-all">
-                  {`python "C:\\Users\\c182154\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" imagens`}
+                  {`py "C:\\Users\\SEUNOME\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "CAMINHO_DA_PASTA_DO_EPISODIO"`}
                 </code>
-                <button onClick={() => copiar('cmd2', `python "C:\\Users\\c182154\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" imagens`)}
+                <button onClick={() => copiar('cmd1', `py "C:\\Users\\SEUNOME\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "CAMINHO_DA_PASTA_DO_EPISODIO"`)}
                   className="flex-shrink-0 p-1.5 rounded-lg bg-white border border-blue-200 text-blue-500 hover:text-blue-700 transition-colors" title="Copiar">
-                  {copiadoId === 'cmd2' ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                  {copiadoId === 'cmd1' ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                 </button>
               </div>
             </div>
@@ -878,11 +899,11 @@ export default function CriacaoVideo() {
               <p className="text-xs text-blue-500">Substitua <span className="font-mono bg-blue-100 px-1 rounded">nome_da_imagem.png</span> pelo arquivo onde travou</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 block text-xs bg-white border border-blue-200 rounded p-2 text-blue-900 break-all select-all">
-                  {`python "C:\\Users\\c182154\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" imagens --debug --start nome_da_imagem.png`}
+                  {`py "C:\\Users\\SEUNOME\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "CAMINHO_DA_PASTA_DO_EPISODIO" --debug --start nome_da_imagem.png`}
                 </code>
-                <button onClick={() => copiar('cmd3', `python "C:\\Users\\c182154\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" imagens --debug --start nome_da_imagem.png`)}
+                <button onClick={() => copiar('cmd2', `py "C:\\Users\\SEUNOME\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "CAMINHO_DA_PASTA_DO_EPISODIO" --debug --start nome_da_imagem.png`)}
                   className="flex-shrink-0 p-1.5 rounded-lg bg-white border border-blue-200 text-blue-500 hover:text-blue-700 transition-colors" title="Copiar">
-                  {copiadoId === 'cmd3' ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                  {copiadoId === 'cmd2' ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                 </button>
               </div>
             </div>
