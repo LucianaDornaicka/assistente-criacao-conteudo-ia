@@ -181,14 +181,15 @@ ${texto}`
     })
 
     const conteudo = message.content[0].text
-    console.log('[Videos] Resposta bruta da IA:', JSON.stringify(conteudo).slice(0, 500))
 
+    // Remove bloco markdown ```json ... ```
     let jsonStr = conteudo.trim()
-    jsonStr = jsonStr.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
-    const start = jsonStr.indexOf('{')
-    const end = jsonStr.lastIndexOf('}')
-    if (start === -1 || end === -1) throw new Error('Resposta inválida da IA')
-    jsonStr = jsonStr.slice(start, end + 1)
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```\s*$/i, '')
+      .trim()
+
+    // Parse direto - o modelo retorna JSON válido após remover o markdown
     const traducoes = JSON.parse(jsonStr)
     if (!traducoes.es || !traducoes.en) throw new Error('Tradução incompleta')
 
