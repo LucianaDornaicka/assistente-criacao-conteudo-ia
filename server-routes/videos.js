@@ -182,15 +182,36 @@ ${texto}`
 
     const conteudo = message.content[0].text
 
-    // Remove bloco markdown ```json ... ```
+    // Remove markdown code block markers
     let jsonStr = conteudo.trim()
       .replace(/^```json\s*/i, '')
       .replace(/^```\s*/i, '')
       .replace(/\s*```\s*$/i, '')
       .trim()
 
-    // Parse direto - o modelo retorna JSON válido após remover o markdown
-    const traducoes = JSON.parse(jsonStr)
+    // Escapa newlines literais dentro de strings JSON (problema comum em scripts longos)
+    let inString = false
+    let escaped = false
+    let fixed = ''
+    for (let i = 0; i < jsonStr.length; i++) {
+      const ch = jsonStr[i]
+      if (escaped) {
+        escaped = false
+        fixed += ch
+      } else if (ch === '\\' && inString) {
+        escaped = true
+        fixed += ch
+      } else if (ch === '"') {
+        inString = !inString
+        fixed += ch
+      } else if (inString && (ch === '\n' || ch === '\r')) {
+        fixed += '\\n'
+      } else {
+        fixed += ch
+      }
+    }
+
+    const traducoes = JSON.parse(fixed)
     if (!traducoes.es || !traducoes.en) throw new Error('Tradução incompleta')
 
     // Salva em disco se pasta fornecida
