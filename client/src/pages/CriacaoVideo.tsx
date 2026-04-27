@@ -107,19 +107,31 @@ export default function CriacaoVideo() {
 
   // ── Feedback ──────────────────────────────────────────────────────────────
   const [erro, setErro] = useState('')
+  const [info, setInfo] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [copiadoId, setCopiadoId] = useState<string | null>(null)
 
   const scriptRef = useRef<HTMLTextAreaElement>(null)
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const abrirPastaEpisodio = () => {
-    if (!pastaNome) return
-    window.open(`file:///C:/Users/lu_do/Desktop/Meu_Agente/Agente-Videos/videos/${encodeURIComponent(pastaNome)}`)
+  const avisarAbrirLocal = (caminho: string) => {
+    setInfo(`Caminho copiado. Cole no Explorer (Win+R) para abrir: ${caminho}`)
+    setTimeout(() => setInfo(''), 5000)
+  }
+
+  const abrirPasta = () => {
+    if (!pastaAtual) return
+    const normalized = pastaAtual.replace(/\\/g, '/')
+    try { window.open(`file:///${encodeURI(normalized)}`) } catch { /* ignore */ }
+    copiar('abrir-pasta', pastaAtual)
+    avisarAbrirLocal(pastaAtual)
   }
 
   const abrirPastaVideos = () => {
-    window.open('file:///C:/Users/lu_do/Desktop/Meu_Agente/Agente-Videos/videos/')
+    const caminho = 'C:\\Users\\lu_do\\Desktop\\Meu_Agente\\Agente-Videos\\videos'
+    try { window.open('file:///C:/Users/lu_do/Desktop/Meu_Agente/Agente-Videos/videos/') } catch { /* ignore */ }
+    copiar('abrir-todos', caminho)
+    avisarAbrirLocal(caminho)
   }
 
   // ── Carregar lista ao montar ───────────────────────────────────────────────
@@ -258,11 +270,6 @@ export default function CriacaoVideo() {
     setEtapasConcluidas(s => new Set([...s, etapa]))
     const idx = ETAPAS.findIndex(e => e.id === etapa)
     if (idx < ETAPAS.length - 1) setEtapaAtual(ETAPAS[idx + 1].id as Etapa)
-  }
-
-  const abrirPasta = async () => {
-    if (!pastaAtual) return
-    await fetch('/api/videos/abrir-pasta', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ pasta: pastaAtual }) })
   }
 
   const gerarTraducao = async () => {
@@ -646,9 +653,9 @@ export default function CriacaoVideo() {
           <span className="text-xs text-gray-500 truncate flex-1">
             {pastaNome ? <span className="font-medium text-gray-700">{pastaNome}</span> : <span className="text-gray-400">Pasta criada ao concluir etapa 1</span>}
           </span>
-          {pastaNome && (
+          {pastaAtual && (
             <button
-              onClick={abrirPastaEpisodio}
+              onClick={abrirPasta}
               className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 text-xs text-gray-500 hover:text-pink-600 border border-gray-200 rounded-md hover:border-pink-300 transition-colors"
             >
               <FolderOpen size={11} /> Abrir
@@ -699,6 +706,12 @@ export default function CriacaoVideo() {
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 flex items-center justify-between">
           {erro}
           <button onClick={() => setErro('')} className="text-red-400 hover:text-red-600 ml-2">✕</button>
+        </div>
+      )}
+      {info && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700 flex items-center justify-between">
+          <span className="break-words">{info}</span>
+          <button onClick={() => setInfo('')} className="text-blue-400 hover:text-blue-700 ml-2">✕</button>
         </div>
       )}
 
