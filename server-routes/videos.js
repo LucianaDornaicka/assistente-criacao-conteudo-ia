@@ -181,9 +181,20 @@ ${texto}`
     })
 
     const conteudo = message.content[0].text
-    const jsonMatch = conteudo.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) throw new Error('Resposta inválida da IA')
-    const traducoes = JSON.parse(jsonMatch[0])
+    // Tenta extrair JSON do bloco de código markdown primeiro
+    let jsonStr = conteudo
+    const codeBlockMatch = conteudo.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (codeBlockMatch) {
+      jsonStr = codeBlockMatch[1].trim()
+    } else {
+      // Busca o primeiro { até o último } balanceado
+      const start = conteudo.indexOf('{')
+      const end = conteudo.lastIndexOf('}')
+      if (start === -1 || end === -1) throw new Error('Resposta inválida da IA')
+      jsonStr = conteudo.slice(start, end + 1)
+    }
+    const traducoes = JSON.parse(jsonStr)
+    if (!traducoes.es || !traducoes.en) throw new Error('Tradução incompleta')
 
     // Salva em disco se pasta fornecida
     if (pasta && fs.existsSync(pasta)) {
