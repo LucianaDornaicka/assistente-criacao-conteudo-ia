@@ -304,6 +304,24 @@ export default function CriacaoVideo() {
     finally { setLoadingTraducao(false) }
   }
 
+  const gerarTraducaoIdioma = async (idioma: 'es' | 'en') => {
+    if (!scriptPT.trim()) return
+    setLoadingTraducao(true)
+    setErro('')
+    try {
+      const res = await fetch('/api/videos/traduzir', {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ texto: scriptPT, pasta: pastaAtual, idioma }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (idioma === 'es') setTraducaoES(data.es || '')
+        if (idioma === 'en') setTraducaoEN(data.en || '')
+      } else { setErro((await res.json()).erro || 'Erro ao traduzir') }
+    } catch { setErro('Erro de conexão ao traduzir') }
+    finally { setLoadingTraducao(false) }
+  }
+
   const gerarAudios = async () => {
     setLoadingAudios(true)
     setErro('')
@@ -316,6 +334,23 @@ export default function CriacaoVideo() {
         const data = await res.json()
         setAudiosBase64(data)
         setAudiosGerados({ pt: !!data.pt, es: !!data.es, en: !!data.en })
+      } else { setErro((await res.json()).erro || 'Erro ao gerar áudios') }
+    } catch { setErro('Erro de conexão ao gerar áudios') }
+    finally { setLoadingAudios(false) }
+  }
+
+  const gerarAudioIdioma = async (idioma: 'pt' | 'es' | 'en') => {
+    setLoadingAudios(true)
+    setErro('')
+    try {
+      const res = await fetch('/api/videos/gerar-audios', {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ scriptPT, scriptES: traducaoES, scriptEN: traducaoEN, pasta: pastaAtual, idioma }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAudiosBase64(prev => ({ ...prev, ...data }))
+        setAudiosGerados(prev => ({ ...prev, [idioma]: !!data[idioma] }))
       } else { setErro((await res.json()).erro || 'Erro ao gerar áudios') }
     } catch { setErro('Erro de conexão ao gerar áudios') }
     finally { setLoadingAudios(false) }
@@ -359,6 +394,56 @@ export default function CriacaoVideo() {
       } else { setErro((await res.json()).erro || 'Erro ao gerar prompts') }
     } catch { setErro('Erro de conexão ao gerar prompts') }
     finally { setLoadingPrompts(false) }
+  }
+
+  const gerarMaisPrompts = async () => {
+    if (!scriptPT.trim()) return
+    setLoadingPrompts(true)
+    setErro('')
+    try {
+      const res = await fetch('/api/videos/gerar-prompts', {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ texto: scriptPT }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const novosPrompts: Prompt[] = (data.prompts || []).map((item: { ptScript: string; ptPrompt: string }) => ({
+          id: `${Date.now()}-${Math.random()}`,
+          ptScript: item.ptScript,
+          ptPrompt: item.ptPrompt,
+          enPrompt: '',
+          validado: false,
+          loadingTraducao: false,
+        }))
+        setPrompts(prev => [...prev, ...novosPrompts])
+      } else { setErro((await res.json()).erro || 'Erro ao gerar prompts') }
+    } catch { setErro('Erro de conexão ao gerar prompts') }
+    finally { setLoadingPrompts(false) }
+  }
+
+  const regenerarPrompt = async (id: string) => {
+    const prompt = prompts.find(x => x.id === id)
+    if (!prompt) return
+    if (!prompt.ptScript?.trim()) return
+    setPrompts(p => p.map(x => x.id === id ? { ...x, loadingTraducao: true } : x))
+    setErro('')
+    try {
+      const res = await fetch('/api/videos/gerar-prompt', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ trecho: prompt.ptScript }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setPrompts(p => p.map(x => x.id === id ? { ...x, ptPrompt: data.ptPrompt || x.ptPrompt, enPrompt: '', validado: false, loadingTraducao: false } : x))
+      } else {
+        setErro((await res.json()).erro || 'Erro ao regenerar prompt')
+        setPrompts(p => p.map(x => x.id === id ? { ...x, loadingTraducao: false } : x))
+      }
+    } catch {
+      setErro('Erro de conexão ao regenerar prompt')
+      setPrompts(p => p.map(x => x.id === id ? { ...x, loadingTraducao: false } : x))
+    }
   }
 
   const adicionarPrompt = () => {
@@ -739,6 +824,22 @@ export default function CriacaoVideo() {
           <button onClick={gerarTraducao} disabled={loadingTraducao} className="btn-secondary w-full flex items-center justify-center gap-2">
             {loadingTraducao ? <><Loader2 size={16} className="animate-spin" /> Traduzindo...</> : <><Wand2 size={16} /> Gerar Traduções Automaticamente</>}
           </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              onClick={() => gerarTraducaoIdioma('es')}
+              disabled={loadingTraducao}
+              className="btn-secondary w-full flex items-center justify-center gap-2"
+            >
+              🇪🇸 Gerar só Espanhol
+            </button>
+            <button
+              onClick={() => gerarTraducaoIdioma('en')}
+              disabled={loadingTraducao}
+              className="btn-secondary w-full flex items-center justify-center gap-2"
+            >
+              🇺🇸 Gerar só Inglês
+            </button>
+          </div>
           <div>
             <label className="label">🇪🇸 Espanhol</label>
             <textarea className="input resize-none" rows={4} value={traducaoES} onChange={e => setTraducaoES(e.target.value)} placeholder="Tradução em espanhol..." />
@@ -763,6 +864,11 @@ export default function CriacaoVideo() {
           <button onClick={gerarAudios} disabled={loadingAudios} className="btn-secondary w-full flex items-center justify-center gap-2">
             {loadingAudios ? <><Loader2 size={16} className="animate-spin" /> Gerando áudios...</> : <><Wand2 size={16} /> Gerar Áudios Automaticamente (ElevenLabs)</>}
           </button>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <button onClick={() => gerarAudioIdioma('pt')} disabled={loadingAudios} className="btn-secondary w-full">🇧🇷 Gerar só Português</button>
+            <button onClick={() => gerarAudioIdioma('es')} disabled={loadingAudios} className="btn-secondary w-full">🇪🇸 Gerar só Espanhol</button>
+            <button onClick={() => gerarAudioIdioma('en')} disabled={loadingAudios} className="btn-secondary w-full">🇺🇸 Gerar só Inglês</button>
+          </div>
           {loadingAudios && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
               Gerando áudios PT, ES e EN via ElevenLabs. Aguarde...
@@ -800,9 +906,14 @@ export default function CriacaoVideo() {
       {etapaAtual === 'prompts' && (
         <div className="card p-5 space-y-4">
           <h2 className="font-semibold text-gray-900">4. Prompts para Imagens</h2>
-          <button onClick={gerarPromptsAutomatico} disabled={loadingPrompts} className="btn-secondary w-full flex items-center justify-center gap-2">
-            {loadingPrompts ? <><Loader2 size={16} className="animate-spin" /> Gerando prompts com IA...</> : <><Wand2 size={16} /> Gerar Prompts Automaticamente (IA)</>}
-          </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button onClick={gerarPromptsAutomatico} disabled={loadingPrompts} className="btn-secondary w-full flex items-center justify-center gap-2">
+              {loadingPrompts ? <><Loader2 size={16} className="animate-spin" /> Gerando prompts com IA...</> : <><Wand2 size={16} /> Gerar Prompts Automaticamente (IA)</>}
+            </button>
+            <button onClick={gerarMaisPrompts} disabled={loadingPrompts} className="btn-secondary w-full flex items-center justify-center gap-2">
+              ➕ Gerar novos prompts
+            </button>
+          </div>
           <div className="flex gap-2">
             <input className="input flex-1" placeholder="Adicionar prompt em português manualmente..."
               value={novoPromptPT} onChange={e => setNovoPromptPT(e.target.value)}
@@ -824,6 +935,14 @@ export default function CriacaoVideo() {
                     <textarea className="flex-1 text-sm text-gray-800 bg-transparent border-0 outline-none resize-none leading-relaxed min-h-[3rem]"
                       value={p.ptPrompt} onChange={e => editarPromptPT(p.id, e.target.value)} rows={2} />
                     <div className="flex gap-1 flex-shrink-0 mt-0.5">
+                      <button
+                        onClick={() => regenerarPrompt(p.id)}
+                        disabled={p.loadingTraducao || !p.ptScript?.trim()}
+                        className={`p-1 rounded transition-colors ${p.loadingTraducao ? 'text-gray-300' : 'text-gray-300 hover:text-pink-500'}`}
+                        title="Regenerar este prompt"
+                      >
+                        🔄
+                      </button>
                       <button onClick={() => togglePrompt(p.id)} disabled={p.loadingTraducao || !p.ptPrompt.trim()}
                         className={`p-1 rounded transition-colors ${p.loadingTraducao ? 'text-gray-300' : p.validado ? 'text-green-500' : 'text-gray-300 hover:text-green-500'}`}>
                         {p.loadingTraducao ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
@@ -956,18 +1075,21 @@ export default function CriacaoVideo() {
             <p className="text-sm font-medium text-blue-800">Automação via Playwright (recomendado)</p>
 
             <div className="space-y-1">
-              <p className="text-xs text-blue-600">
-                Substitua SEUNOME pelo seu usuário Windows (ex: lu_do). As imagens devem estar em uma subpasta chamada imagens dentro da pasta do episódio.
+              <p className="text-sm text-blue-800 font-medium">
+                1. Abra o PowerShell (tecla Windows + X → Terminal/PowerShell)
+              </p>
+              <p className="text-sm text-blue-800 font-medium">
+                2. Cole o comando abaixo substituindo apenas <span className="font-mono bg-blue-100 px-1 rounded">NOME_DA_PASTA</span> pelo nome da pasta do seu episódio (ex: <span className="font-mono bg-blue-100 px-1 rounded">5. Por que Jesus Morreu</span>):
               </p>
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs font-medium text-blue-700">2. Animar todas as imagens</p>
+              <p className="text-xs font-medium text-blue-700">Comando</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 block text-xs bg-white border border-blue-200 rounded p-2 text-blue-900 break-all select-all">
-                  {`py "C:\\Users\\SEUNOME\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "CAMINHO_DA_PASTA_DO_EPISODIO"`}
+                  {`py "C:\\Users\\lu_do\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "C:\\Users\\lu_do\\Desktop\\Meu_Agente\\Agente-Videos\\videos\\NOME_DA_PASTA"`}
                 </code>
-                <button onClick={() => copiar('cmd1', `py "C:\\Users\\SEUNOME\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "CAMINHO_DA_PASTA_DO_EPISODIO"`)}
+                <button onClick={() => copiar('cmd1', `py "C:\\Users\\lu_do\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "C:\\Users\\lu_do\\Desktop\\Meu_Agente\\Agente-Videos\\videos\\NOME_DA_PASTA"`)}
                   className="flex-shrink-0 p-1.5 rounded-lg bg-white border border-blue-200 text-blue-500 hover:text-blue-700 transition-colors" title="Copiar">
                   {copiadoId === 'cmd1' ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                 </button>
@@ -975,13 +1097,13 @@ export default function CriacaoVideo() {
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs font-medium text-blue-700">3. Se travar, retomar de onde parou</p>
+              <p className="text-xs font-medium text-blue-700">Se travar, retomar de onde parou</p>
               <p className="text-xs text-blue-500">Substitua <span className="font-mono bg-blue-100 px-1 rounded">nome_da_imagem.png</span> pelo arquivo onde travou</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 block text-xs bg-white border border-blue-200 rounded p-2 text-blue-900 break-all select-all">
-                  {`py "C:\\Users\\SEUNOME\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "CAMINHO_DA_PASTA_DO_EPISODIO" --debug --start nome_da_imagem.png`}
+                  {`py "C:\\Users\\lu_do\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "C:\\Users\\lu_do\\Desktop\\Meu_Agente\\Agente-Videos\\videos\\NOME_DA_PASTA" --debug --start nome_da_imagem.png`}
                 </code>
-                <button onClick={() => copiar('cmd2', `py "C:\\Users\\SEUNOME\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "CAMINHO_DA_PASTA_DO_EPISODIO" --debug --start nome_da_imagem.png`)}
+                <button onClick={() => copiar('cmd2', `py "C:\\Users\\lu_do\\Desktop\\Meu_Agente\\Agente-Videos\\scripts\\animar_imagens.py" "C:\\Users\\lu_do\\Desktop\\Meu_Agente\\Agente-Videos\\videos\\NOME_DA_PASTA" --debug --start nome_da_imagem.png`)}
                   className="flex-shrink-0 p-1.5 rounded-lg bg-white border border-blue-200 text-blue-500 hover:text-blue-700 transition-colors" title="Copiar">
                   {copiadoId === 'cmd2' ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                 </button>
