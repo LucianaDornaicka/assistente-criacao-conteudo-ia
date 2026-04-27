@@ -181,6 +181,7 @@ ${texto}`
     })
 
     const conteudo = message.content[0].text
+    console.log('[Videos] Resposta bruta da IA:', JSON.stringify(conteudo).slice(0, 500))
     // Tenta extrair JSON do bloco de código markdown primeiro
     let jsonStr = conteudo
     const codeBlockMatch = conteudo.match(/```(?:json)?\s*([\s\S]*?)```/)
