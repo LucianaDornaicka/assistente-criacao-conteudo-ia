@@ -165,7 +165,8 @@ router.post('/traduzir', async (req, res) => {
     const apiKey = env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY
     const client = new Anthropic({ apiKey })
 
-    const prompt = `Traduza o seguinte texto bíblico/religioso para espanhol e inglês.
+    const prompt = `Responda APENAS com JSON válido, sem texto antes ou depois.
+Traduza o seguinte texto bíblico/religioso para espanhol e inglês.
 Retorne APENAS um JSON válido no formato: {"es": "tradução em espanhol", "en": "english translation"}
 Mantenha o tom pastoral e devocional.
 IMPORTANTE: preserve exatamente os marcadores de voz [LUCIANA], [/LUCIANA], [TOM], [/TOM] em suas posições — apenas traduza o texto dentro deles.
